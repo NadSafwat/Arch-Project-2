@@ -1,5 +1,19 @@
 import re
 
+LOAD1 = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
+LOAD2 = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
+STORE1 = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
+STORE2 = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
+ADD_ADDI1 = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
+ADD_ADDI2 = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
+ADD_ADDI3 = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
+DIV = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
+BNE = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
+CALL = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
+RET = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
+
+ReservationStation = [LOAD1, LOAD2, STORE1, STORE2, ADD_ADDI1, ADD_ADDI2, ADD_ADDI3, DIV, BNE, CALL, RET]
+
 def is_valid_instruction(instruction):
     if (instruction[0:4] == "load" or instruction[0:5] == "store"):
        instruction_pattern = re.compile(r'(load|store)r[0-7],[0-9]+\(r[0-7]\)$')
@@ -42,7 +56,9 @@ def getUserInpt():
                 elif(userInst[0:3] == "ret"):
                     userInstList = [userInst[0:3], None, None, None]
                 instructions_to_run.append(userInstList)
-        
-          
+
+def simulate():
+    print("Pending: ")
+
 getUserInpt()
 
