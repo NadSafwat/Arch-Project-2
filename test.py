@@ -12,7 +12,7 @@ DIV = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":
 BNE = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
 CALL_RET = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
 
-ReservationStation = [LOAD1, LOAD2, STORE1, STORE2, ADD_ADDI1, ADD_ADDI2, ADD_ADDI3, DIV, BNE, CALL, RET]
+ReservationStation = [LOAD1, LOAD2, STORE1, STORE2, ADD_ADDI1, ADD_ADDI2, ADD_ADDI3, DIV, BNE, CALL_RET]
 
 def is_valid_instruction(instruction):
     if (instruction[0:4] == "load" or instruction[0:5] == "store"):
@@ -28,7 +28,6 @@ def is_valid_instruction(instruction):
     elif(instruction[0:3] == "add" or instruction[0:4] == "nand" or instruction[0:3] == "div"):
         instruction_pattern = re.compile(r'(add|nand|div)r[0-7],r[0-7],r[0-7]$')
 
-    
     return bool(instruction_pattern.match(instruction))
 
 def canIssue(Inst):
@@ -36,6 +35,16 @@ def canIssue(Inst):
         if(LOAD1["Busy"] == 'N'):
             return True
         elif(LOAD2["Busy"] == "N"):
+            return True
+        else:
+            return False
+        
+    if(Inst[0] == "add" or Inst[0] == "addi"):
+        if(ADD_ADDI1["Busy"] == 'N'):
+            return True
+        elif(ADD_ADDI2["Busy"] == "N"):
+            return True
+        elif(ADD_ADDI3["Busy"] == "N"):
             return True
         else:
             return False
@@ -53,6 +62,25 @@ def canIssue(Inst):
             return True
         else:
             return False
+    
+    if(Inst[0] == "div"):
+        if(DIV["Busy"] == 'N'):
+            return True
+        else:
+            return False
+    
+    if(Inst[0] == "bne"):
+        if(BNE["Busy"] == 'N'):
+            return True
+        else:
+            return False
+    if(Inst[0] == "call" or Inst[0] == "ret"):
+        if(CALL_RET["Busy"] == 'N'):
+            return True
+        else:
+            return False
+
+
 
 def getUserInpt():
     instructions_to_run=[]
