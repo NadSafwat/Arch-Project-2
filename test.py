@@ -7,10 +7,10 @@ STORE2 = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "
 ADD_ADDI1 = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
 ADD_ADDI2 = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
 ADD_ADDI3 = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
+NAND = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
 DIV = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
 BNE = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
-CALL = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
-RET = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
+CALL_RET = {"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None}
 
 ReservationStation = [LOAD1, LOAD2, STORE1, STORE2, ADD_ADDI1, ADD_ADDI2, ADD_ADDI3, DIV, BNE, CALL, RET]
 
@@ -30,6 +30,29 @@ def is_valid_instruction(instruction):
 
     
     return bool(instruction_pattern.match(instruction))
+
+def canIssue(Inst):
+    if(Inst[0] == "load"):
+        if(LOAD1["Busy"] == 'N'):
+            return True
+        elif(LOAD2["Busy"] == "N"):
+            return True
+        else:
+            return False
+    
+    if(Inst[0] == "store"):
+        if(STORE1["Busy"] == 'N'):
+            return True
+        elif(STORE2["Busy"] == "N"):
+            return True
+        else:
+            return False
+    
+    if(Inst[0] == "nand"):
+        if(NAND["Busy"] == 'N'):
+            return True
+        else:
+            return False
 
 def getUserInpt():
     instructions_to_run=[]
