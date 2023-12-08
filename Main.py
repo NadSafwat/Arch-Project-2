@@ -1,8 +1,5 @@
 import tkinter as tk
 from tkinter import ttk
-from tkinter import messagebox
-from ttkwidgets.autocomplete import AutocompleteEntry
-from tkinter import *
 
 # Global variables
 Main = None
@@ -10,18 +7,6 @@ App = None
 table = None
 
 def Start():
-    instructions = [
-        "LOAD rA, offset(rB)",
-        "STORE rA, offset(rB)",
-        "BNE rA, rB, offset",
-        "CALL label",
-        "RET",
-        "ADD rA, rB, rC",
-        "ADDI rA, rB, imm",
-        "NAND rA, rB, rC",
-        "DIV rA, rB, rC"
-    ]
-
     global Main
     Main = tk.Tk()
     Main.title("Tomasulo")
@@ -41,11 +26,12 @@ def Start():
     entry_text = tk.Text(Main, font=('Serif', 12), height=10, width=50)
     entry_text.pack(pady=10)
 
-    user_instruction = entry_text.get("1.0", tk.END).split("\n")
+    global user_instruction 
+    user_instruction= entry_text.get("1.0", tk.END).split("\n")
 
     def app_page():
         user_instruction = entry_text.get("1.0", tk.END).split("\n")
-        print(user_instruction)
+        # print(user_instruction)
 
         Main.destroy()
 
@@ -63,7 +49,7 @@ def Start():
 
     btn1 = tk.Button(Main, text="Enter", font=('Arial', 12), command=app_page)
     btn1.pack(pady=20)
-
+    
     Main.mainloop()
 
 def create_tracing_table(parent):
@@ -82,6 +68,10 @@ def create_tracing_table(parent):
     table.pack()
 
     return table
+
+print("===================================")
+
+print(Start())
 
 # def app_page(instruction):
 #     Main.destroy()
