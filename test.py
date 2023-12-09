@@ -12,16 +12,6 @@ DIV = {"Name" : "Div" ,"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None,
 BNE = {"Name" : "Bne" ,"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None, "Imm":None}
 CALL_RET = {"Name" : "Call/Ret" ,"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None, "Imm":None}
 
-ReservationStation = [LOAD1, LOAD2, STORE1, STORE2, ADD_ADDI1, ADD_ADDI2, ADD_ADDI3, NAND, DIV, BNE, CALL_RET]
-
-mem = [0,3,5,5,6,7,8,9,96,3,2,5]
-
-inst_RS = []
-exec_time = []
-can_write = []
-write_queue = []
-
-# for reg/Qi table at the bottom of every slide
 RegisterStat = {       
     "r0": None,
     "r1": None,
@@ -33,22 +23,31 @@ RegisterStat = {
     "r7": None,
     "r8": None
 }
+ReservationStation = [LOAD1, LOAD2, STORE1, STORE2, ADD_ADDI1, ADD_ADDI2, ADD_ADDI3, NAND, DIV, BNE, CALL_RET]
 
-def fix_after_write(functional_unit_name, rd):
-    for rs in ReservationStation:
-      
-        if(rs["Qj"] == functional_unit_name):
-            rs["Qj"] = None
-            rs["Vj"] = Reg[rd]
-        if(rs["Qk"] == functional_unit_name):
-            rs["Qk"] = None
-            rs["Vk"] = Reg[rd]
-          
-      
+mem = []
+inst_RS = []
+exec_time = []
+can_write = []
+write_queue = []
+instructions = []
 
-    
-    if(rd is not None):
-        RegisterStat[rd] = None
+
+Reg = {
+    "r0": 0,
+    "r1": 1,
+    "r2": 0,
+    "r3": 0,
+    "r4": 0,
+    "r5": 0,
+    "r6": 1,
+    "r7": 0,
+    "r8": 0
+}
+
+def IntializeMem ():
+    for i in range(8):
+        mem.append(0)
 
 def is_valid_instruction(instruction):
     if (instruction[0:4] == "load" or instruction[0:5] == "store"):
@@ -66,13 +65,13 @@ def is_valid_instruction(instruction):
 
     return bool(instruction_pattern.match(instruction))
 
-def getUserInpt():
+def getUserInptInst():
     instructions_to_run=[]
     print("Available instructions are: \nload rA, offset(rB) \nstore rA, offset(rB) \nbne rA, rB, offset \ncall label \nret \nadd rA, rB, rC \naddi rA, rB, imm \nnand rA, rB, rC \ndiv rA, rB, rC")
-    print("Please enter your instructions one by one")
+    print("Please enter your instructions one by one or 0 to signal end")
     while(True):
         userInst = input(": ").lower().replace(" ","")
-        if (userInst == 0):
+        if (userInst == '0'):
             return instructions_to_run
         else:
             if(is_valid_instruction(userInst)==False):
@@ -92,60 +91,105 @@ def getUserInpt():
                     userInstList = [userInst[0:3], None, None, None]
                 instructions_to_run.append(userInstList)
 
-def canIssue(Inst):
+def getUserInptMem():
+    print("Please enter your required memory values or press enter to signal end: ")
+    while(True):
+        try: 
+            addr = int(input("Enter Address: "))
+            if(addr > 7):
+                print("Invalid address")
+            else:
+                try: 
+                    data_in = int(input("Enter data (16 bit): "))
+                    if(data_in > 65536):
+                        print("Data is too large")
+                    else:
+                        mem[addr] = data_in
+                except: print("Invalid Input")
+        except: return 
+
+instructions = [["load", "r5", "0", "r2"],
+                ["load", "r2", "1", "r2"], 
+                ["div","r0","r2","r4"], 
+                ["add", "r4","r2","r6"], 
+                ["ret",None,None,None],
+                ["add", "r6", "r1","r5"] , 
+                ["addi", "r1", "r1", "1"], 
+                ["add", "r6", "r1","r5"]]
+
+IntializeMem()
+# getUserInptMem()
+# instructions = getUserInptInst()
+
+# for reg/Qi table at the bottom of every slide
+def fix_after_write(functional_unit_name, rd):
+    for rs in ReservationStation:
+      
+        if(rs["Qj"] == functional_unit_name):
+            rs["Qj"] = None
+            rs["Vj"] = Reg[rd]
+        if(rs["Qk"] == functional_unit_name):
+            rs["Qk"] = None
+            rs["Vk"] = Reg[rd]
+    if(rd is not None):
+        RegisterStat[rd] = None
+
+def canIssue(Inst, written_FU):
     if(Inst[0] == "load"):
-        if(LOAD1["Busy"] == 'N'):
+        if(LOAD1["Busy"] == 'N' and written_FU != "Load1"):
             return True, ReservationStation[0]
-        elif(LOAD2["Busy"] == "N"):
+        elif(LOAD2["Busy"] == "N" and written_FU != "Load2"):
             return True, ReservationStation[1]
         else:
             return False, None
         
-    if(Inst[0] == "add" or Inst[0] == "addi"):
-        if(ADD_ADDI1["Busy"] == 'N'):
+    elif(Inst[0] == "add" or Inst[0] == "addi"):
+        if(ADD_ADDI1["Busy"] == 'N' and written_FU != "Add/Addi_1"):
             return True, ReservationStation[4]
-        elif(ADD_ADDI2["Busy"] == "N"):
+        elif(ADD_ADDI2["Busy"] == "N" and written_FU != "Add/Addi_2"):
             return True, ReservationStation[5]
-        elif(ADD_ADDI3["Busy"] == "N"):
+        elif(ADD_ADDI3["Busy"] == "N" and written_FU != "Add/Addi_3"):
             return True, ReservationStation[6]
         else:
             return False,None
     
-    if(Inst[0] == "store"):
-        if(STORE1["Busy"] == 'N'):
+    elif(Inst[0] == "store"):
+        if(STORE1["Busy"] == 'N' and written_FU != "Store1"):
             return True, ReservationStation[2]
-        elif(STORE2["Busy"] == "N"):
+        elif(STORE2["Busy"] == "N" and written_FU != "Store2"):
             return True, ReservationStation[3]
         else:
             return False,None
     
-    if(Inst[0] == "nand"):
-        if(NAND["Busy"] == 'N'):
+    elif(Inst[0] == "nand"):
+        if(NAND["Busy"] == 'N' and written_FU != "Nand" ):
             return True, ReservationStation[7]
         else:
             return False,None
     
-    if(Inst[0] == "div"):
+    elif(Inst[0] == "div" and written_FU != "Div"):
         if(DIV["Busy"] == 'N'):
             return True, ReservationStation[8]
         else:
             return False,None
     
-    if(Inst[0] == "bne"):
-        if(BNE["Busy"] == 'N'):
+    elif(Inst[0] == "bne"):
+        if(BNE["Busy"] == 'N' and written_FU != "Bne"):
             return True, ReservationStation[9]
         else:
             return False,None
-    if(Inst[0] == "call" or Inst[0] == "ret"):
-        if(CALL_RET["Busy"] == 'N'):
+    elif(Inst[0] == "call" or Inst[0] == "ret"):
+        if(CALL_RET["Busy"] == 'N'and written_FU != "Call/Ret"):
             return True, ReservationStation[10]
         else:
             return False,None
+    else:
+        return False,None
 
-def issue(Inst, PC):
+def issue(Inst, PC, written_FU):
     if(Inst[0] == "load"):
-        if(canIssue(Inst)[0] == True ):
-            station = canIssue(Inst)[1]
+        if(canIssue(Inst,written_FU)[0] == True):
+            station = canIssue(Inst,written_FU)[1]
             station["Busy"] = 'Y'
             station["OP"] = Inst[0]
             station["Vj"] = Reg[Inst[3]]
@@ -168,8 +212,8 @@ def issue(Inst, PC):
             return False
     
     elif(Inst[0] == "store"):
-        if(canIssue(Inst)[0] == True ):
-            station = canIssue(Inst)[1]
+        if(canIssue(Inst,written_FU)[0] == True ):
+            station = canIssue(Inst,written_FU)[1]
             station["Busy"] = 'Y'
             station["OP"] = Inst[0]
             station["Vj"] = Reg[Inst[1]]
@@ -195,8 +239,8 @@ def issue(Inst, PC):
             return False         
 
     elif(Inst[0] == "add" or Inst[0] == "nand" or Inst[0] == "div"):
-        if(canIssue(Inst)[0] == True):
-            station = canIssue(Inst)[1]
+        if(canIssue(Inst,written_FU)[0] == True):
+            station = canIssue(Inst,written_FU)[1]
             station["Busy"] = 'Y'
             station["OP"] = Inst[0]
             station["Vj"] = Reg[Inst[2]]
@@ -224,8 +268,8 @@ def issue(Inst, PC):
                    
 
     elif(Inst[0] == "addi"):
-        if(canIssue(Inst)[0] == True):
-            station = canIssue(Inst)[1]
+        if(canIssue(Inst,written_FU)[0] == True):
+            station = canIssue(Inst,written_FU)[1]
             station["Busy"] = 'Y'
             station["OP"] = Inst[0]
             station["Vj"] = Reg[Inst[2]]
@@ -248,8 +292,8 @@ def issue(Inst, PC):
             return False
 
     elif(Inst[0] == "bne"):
-        if(canIssue(Inst)[0]==True):
-            station = canIssue(Inst)[1]
+        if(canIssue(Inst,written_FU)[0]==True):
+            station = canIssue(Inst,written_FU)[1]
             station["Busy"] = 'Y'
             station["OP"] = Inst[0]
             station["Vj"] = Reg[Inst[1]]
@@ -274,8 +318,8 @@ def issue(Inst, PC):
             return False
 
     elif(Inst[0]=="call"):
-        if(canIssue(Inst)[0] == True):
-            station = canIssue(Inst)[1]
+        if(canIssue(Inst,written_FU)[0] == True):
+            station = canIssue(Inst,written_FU)[1]
             station["Busy"] = 'Y'
             station["OP"] = Inst[0]
             station["Vj"] = None
@@ -294,8 +338,8 @@ def issue(Inst, PC):
             return False
 
     elif(Inst[0]=="ret"):
-        if(canIssue(Inst)[0] == True):
-            station = canIssue(Inst)[1]
+        if(canIssue(Inst,written_FU)[0] == True):
+            station = canIssue(Inst,written_FU)[1]
             station["Busy"] = 'Y'
             station["OP"] = Inst[0]
             station["Vj"] = "r1"
@@ -313,29 +357,6 @@ def issue(Inst, PC):
             return True
         else:
             return False
-
-# for testing the function only
-Reg = {
-    "r0": 0,
-    "r1": 1,
-    "r2": 10,
-    "r3": 19,
-    "r4": 20,
-    "r5": 30,
-    "r6": 40,
-    "r7": 7,
-    "r8": 50
-}
-
-#example in the recordings for now
-instructions = [["load", "r6", "0", "r2"],
-                ["load", "r2", "1", "r2"], 
-                ["div","r0","r2","r4"], 
-                ["add", "r8","r2","r6"], 
-                ["div","r7","r0","r6"],
-                ["add", "r6", "r1","r5"] , 
-                ["addi", "r1", "r1", "1"], 
-                ["add", "r6", "r1","r5"]]
 
 def removeInst(station):
     station["Busy"] = 'N'
@@ -495,9 +516,11 @@ def WriteBack(Inst, station):
         station = removeInst(station)
 
 def simulate(clk, PC):
+    written_FU = None
     if(clk > 1):
         if(len(write_queue)):
             i = write_queue[0]
+            written_FU = inst_RS[i]["Name"]
             WriteBack(instructions[i], inst_RS[i])
             print("Inst ", i, "Written")
             write_queue.pop(0)
@@ -511,7 +534,7 @@ def simulate(clk, PC):
                 can_write[j] = 0
 
     if(PC < len(instructions)):
-        if(issue(instructions[PC], PC)):
+        if(issue(instructions[PC], PC, written_FU)):
             print("Issued Inst ", PC)
             return(PC + 1)
         else:
@@ -519,11 +542,11 @@ def simulate(clk, PC):
     else:
         return PC
         
-
 def top ():
     clk = 0
     PC = 0
-    
+
+    print(instructions)
     for i in range (30):
         PC = simulate(clk, PC)
         print("==============================================")
@@ -537,3 +560,6 @@ def top ():
     #         clk += 1
 
 top()
+
+print(Reg)
+print(mem)
