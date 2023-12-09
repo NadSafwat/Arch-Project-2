@@ -34,12 +34,14 @@ RegisterStat = {
     "r8": None
 }
 
-def fix_after_write(functional_unit_name, rd):
+def fix_after_write(functional_unit_name, rd, rs1, rs2):
     for rs in ReservationStation:
         if(rs["Qj"] == functional_unit_name):
             rs["Qj"] = None
+            if(rs1 is not None): rs["Vj"] = Reg[rs1]
         if(rs["Qk"] == functional_unit_name):
             rs["Qk"] = None
+            if(rs2 is not None): rs["Vk"] = Reg[rs2]
     
     if(rd is not None):
         RegisterStat[rd] = None
@@ -420,45 +422,45 @@ def canExecute(j, station, count):
 def WriteBack(Inst, station):
     if(station["OP"] == "load"):
         Reg[Inst[1]] = mem[station["A"]]
-        fix_after_write(station["Name"], Inst[1])
+        fix_after_write(station["Name"], Inst[1], Inst[2], None)
         station = removeInst(station)
 
     elif(station["OP"] == "store"):
         mem[station["A"]] = station["Vj"]
-        fix_after_write(station["Name"], None)
+        fix_after_write(station["Name"], None, Inst[1], Inst[3])
         station = removeInst(station)
 
     elif(station["OP"] == "add"):
         Reg[Inst[1]] = station["Vj"]+station["Vk"]
-        fix_after_write(station["Name"], Inst[1])
+        fix_after_write(station["Name"], Inst[1], Inst[2], Inst[3])
         station = removeInst(station)
 
     elif(station["OP"] == "nand"):
         Reg[Inst[1]] = ~(station["Vj"] & station["Vk"])
-        fix_after_write(station["Name"], Inst[1])
+        fix_after_write(station["Name"], Inst[1], Inst[2], Inst[3])
         station = removeInst(station)
 
     elif( station["OP"] == "addi"):
         Reg[Inst[1]] = station["Vj"]+station["Imm"]
-        fix_after_write(station["Name"], Inst[1])
+        fix_after_write(station["Name"], Inst[1], Inst[2], None)
         station = removeInst(station)
 
     elif(station["OP"] == "div"):
         Reg[Inst[1]] = station["Vj"]/station["Vk"]
-        fix_after_write(station["Name"], Inst[1])
+        fix_after_write(station["Name"], Inst[1], Inst[2], Inst[3])
         station = removeInst(station)
 
     elif(station["OP"] == "bne"):
-        fix_after_write(station["Name"], None)
+        fix_after_write(station["Name"], None, Inst[1], Inst[2])
         station = removeInst(station)
 
     elif(station["OP"] == "call"):
         Reg["r1"] = station["Imm"]+1
-        fix_after_write(station["Name"], "r1")
+        fix_after_write(station["Name"], "r1", None, None)
         station = removeInst(station)
 
     elif(station["OP"] == "ret"):
-        fix_after_write(station["Name"], None)
+        fix_after_write(station["Name"], None, "r1", None)
         station = removeInst(station)
 
 def simulate(clk, PC):
