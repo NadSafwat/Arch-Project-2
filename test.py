@@ -499,17 +499,20 @@ def simulate(clk, PC):
         if(len(write_queue)):
             i = write_queue[0]
             WriteBack(instructions[i], inst_RS[i])
+            print("Inst ", i, "Written")
             write_queue.pop(0)
 
     if(clk != 0):
         for j in range(len(inst_RS)):
             exec_time[j] = canExecute(j, inst_RS[j], exec_time[j])
+            print("Executed inst", j, " ", exec_time[j], " cycles")
             if(can_write[j]):
                 write_queue.append(j)
                 can_write[j] = 0
 
     if(PC < len(instructions)):
         if(issue(instructions[PC], PC)):
+            print("Issued Inst ", PC)
             return(PC + 1)
         else:
             return PC
@@ -523,9 +526,10 @@ def top ():
     
     for i in range (30):
         PC = simulate(clk, PC)
+        print("==============================================")
         clk += 1
 
-    print(Reg)
+    #print(Reg)
     # while(True):
     #     go = input()
     #     if(go):
