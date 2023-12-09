@@ -36,10 +36,16 @@ RegisterStat = {
 
 def fix_after_write(functional_unit_name, rd):
     for rs in ReservationStation:
+      
         if(rs["Qj"] == functional_unit_name):
             rs["Qj"] = None
+            rs["Vj"] = Reg[rd]
         if(rs["Qk"] == functional_unit_name):
             rs["Qk"] = None
+            rs["Vk"] = Reg[rd]
+          
+      
+
     
     if(rd is not None):
         RegisterStat[rd] = None
@@ -214,7 +220,8 @@ def issue(Inst, PC):
             can_write.append(0)
             return True
         else:
-            return False                 
+            return False  
+                   
 
     elif(Inst[0] == "addi"):
         if(canIssue(Inst)[0] == True):
@@ -344,63 +351,84 @@ def removeInst(station):
     
 def canExecute(j, station, count):
     if(station["OP"] == "load"):
-        if(station["Qj"] is None and count < 3):
-            if (count == 1):
-                station["A"] = station["Vj"] + station["A"]
-            if(count == 2):
-                can_write[j] = 1
-            return (count+1)
-        else:
+        try:
+            if(station["Qj"] is None and count < 3):
+                if (count == 1):
+                    station["A"] = station["Vj"] + station["A"]
+                if(count == 2):
+                    can_write[j] = 1
+                return (count+1)
+            else:
+                return count
+        except:
             return count
 
     elif(station["OP"] == "store"):
-        if(station["Qj"] is None and station["Qk"] is None and count < 3):
-            if (count == 1):
-                station["A"] = station["Vk"] + station["A"]
-            if(count == 2):
-                can_write[j] = 1
-            return (count+1)
-        else:
+        try:
+            if(station["Qj"] is None and station["Qk"] is None and count < 3):
+                if (count == 1):
+                    station["A"] = station["Vk"] + station["A"]
+                if(count == 2):
+                    can_write[j] = 1
+                return (count+1)
+            else:
+                return count
+        except:
             return count
                  
     elif(station["OP"] == "add"):
-        if(station["Qj"] is None and station["Qk"] is None and count < 2):
-            if(count == 1):
-                can_write[j] = 1
-            return (count+1)
-        else:
+        try:
+            if(station["Qj"] is None and station["Qk"] is None and count < 2):
+                if(count == 1):
+                    can_write[j] = 1
+                return (count+1)
+            else:
+                return count
+        except:
             return count
         
     elif (station["OP"] == "nand"):
-        if(station["Qj"] is None and station["Qk"] is None and count < 1):
-            can_write[j] = 1
-            return (count+1)
-        else:
+        try:
+            if(station["Qj"] is None and station["Qk"] is None and count < 1):
+                can_write[j] = 1
+                return (count+1)
+            else:
+                return count
+        except:
             return count
  
-    elif(station["OP"] == "div"): 
-        if(station["Qj"] is None and station["Qk"] is None and count < 10):
-            if(count == 9):
-                can_write[j] = 1
-            return (count+1)
-        else:
+    elif(station["OP"] == "div"):
+        try: 
+            if(station["Qj"] is None and station["Qk"] is None and count < 10):
+                if(count == 9):
+                    can_write[j] = 1
+                return (count+1)
+            else:
+                return count
+        except:
             return count
     
     elif(station["OP"] == "bne"): 
-        if(station["Qj"] is None and station["Qk"] is None and count < 1):
-            if(station["Vj"] != station["Vk"]):
-                station["A"] =  station["Imm"] + station["A"] + 1
-            can_write[j] = 1
-            return (count+1)
-        else:
+        try:
+            if(station["Qj"] is None and station["Qk"] is None and count < 1):
+                if(station["Vj"] != station["Vk"]):
+                    station["A"] =  station["Imm"] + station["A"] + 1
+                can_write[j] = 1
+                return (count+1)
+            else:
+                return count
+        except:
             return count
        
     elif( station["OP"] == "addi"):
-        if( station["Qj"] is None and count < 2):
-            if(count == 1):
-                can_write[j] = 1
-            return (count+1)
-        else:
+        try:
+            if( station["Qj"] is None and count < 2):
+                if(count == 1):
+                    can_write[j] = 1
+                return (count+1)
+            else:
+                return count
+        except:
             return count
     
     elif(station["OP"] == "call"):
@@ -429,6 +457,8 @@ def WriteBack(Inst, station):
         station = removeInst(station)
 
     elif(station["OP"] == "add"):
+        print(station)
+        print("Vj: ", station["Vj"], "Vk: ", station["Vk"])
         Reg[Inst[1]] = station["Vj"]+station["Vk"]
         fix_after_write(station["Name"], Inst[1])
         station = removeInst(station)
@@ -493,6 +523,8 @@ def top ():
         go = input()
         if(go):
             PC = simulate(clk, PC)
+            if(PC >= len(instructions)):
+                PC = len(instructions)-1
             clk += 1
 
 top()
