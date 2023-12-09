@@ -513,7 +513,6 @@ def simulate(clk, PC):
     else:
         return PC
         
-    
 
 def top ():
     clk = 0
