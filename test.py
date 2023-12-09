@@ -34,7 +34,7 @@ RegisterStat = {
     "r8": None
 }
 
-def fix_after_write(functional_unit_name, rd, rs1, rs2):
+def fix_after_write(functional_unit_name, rd):
     for rs in ReservationStation:
       
         if(rs["Qj"] == functional_unit_name):
@@ -155,7 +155,7 @@ def issue(Inst, PC):
             station["A"] = int(Inst[2])
             station["Imm"] = None
             
-            if(RegisterStat[Inst[3]] != None):       #CHECK FOR RAW
+            if(Inst[3] != "r0" and RegisterStat[Inst[3]] != None):       #CHECK FOR RAW
                 station["Vj"] = None
                 station["Qj"] = RegisterStat[Inst[3]] 
         
@@ -179,13 +179,13 @@ def issue(Inst, PC):
             station["A"] = int(Inst[2])
             station["Imm"] = None
             
-            if(RegisterStat[Inst[3]] != None):       #CHECK FOR RAW
+            if(Inst[3] != "r0" and RegisterStat[Inst[3]] != None):       #CHECK FOR RAW
                 station["Vj"] = None
-                station["Qj"] = RegisterStat[Inst[1]] 
+                station["Qj"] = RegisterStat[Inst[3]] 
 
-            if(RegisterStat[Inst[1]] != None):      #CHECK FOR RAW
+            if(Inst[1] != "r0" and RegisterStat[Inst[1]] != None):      #CHECK FOR RAW
                 station["Vk"] = None
-                station["Qk"] = RegisterStat[Inst[3]]
+                station["Qk"] = RegisterStat[Inst[1]]
 
             inst_RS.append(station)
             exec_time.append(0)
@@ -206,11 +206,11 @@ def issue(Inst, PC):
             station["A"] = None
             station["Imm"] = None
 
-            if(RegisterStat[Inst[2]] != None):
+            if(Inst[2] != "r0" and RegisterStat[Inst[2]] != None):
                 station["Vj"] = None
                 station["Qj"] = RegisterStat[Inst[2]]           
             
-            if(RegisterStat[Inst[3]] != None):
+            if(Inst[3] != "r0" and RegisterStat[Inst[3]] != None):
                 station["Vk"] = None
                 station["Qk"] = RegisterStat[Inst[3]]
 
@@ -235,7 +235,7 @@ def issue(Inst, PC):
             station["A"] = None
             station["Imm"] = int(Inst[3])
 
-            if(RegisterStat[Inst[2]] != None):
+            if(Inst[2] != "r0" and RegisterStat[Inst[2]] != None):
                 station["Vj"] = None
                 station["Qj"] = RegisterStat[Inst[2]]
 
@@ -259,10 +259,10 @@ def issue(Inst, PC):
             station["A"] = int(Inst[3])
             station["Imm"] = PC
 
-            if(RegisterStat[Inst[1]] != None):
+            if(Inst[1] != "r0" and RegisterStat[Inst[1]] != None):
                 station["Vj"] = None
                 station["Qj"] = RegisterStat[Inst[1]]
-            if(RegisterStat[Inst[2]] != None):
+            if(Inst[2] != "r0" and RegisterStat[Inst[2]] != None):
                 station["Vk"] = None
                 station["Qk"] = RegisterStat[Inst[2]]
             
@@ -447,48 +447,51 @@ def canExecute(j, station, count):
 
 def WriteBack(Inst, station):
     if(station["OP"] == "load"):
-        Reg[Inst[1]] = mem[station["A"]]
-        fix_after_write(station["Name"], Inst[1], Inst[2], None)
+        if(Inst[1] != "r0"):
+            Reg[Inst[1]] = mem[station["A"]]
+        fix_after_write(station["Name"], Inst[1])
         station = removeInst(station)
 
     elif(station["OP"] == "store"):
         mem[station["A"]] = station["Vj"]
-        fix_after_write(station["Name"], None, Inst[1], Inst[3])
+        fix_after_write(station["Name"], None)
         station = removeInst(station)
 
     elif(station["OP"] == "add"):
-        print(station)
-        print("Vj: ", station["Vj"], "Vk: ", station["Vk"])
-        Reg[Inst[1]] = station["Vj"]+station["Vk"]
-        fix_after_write(station["Name"], Inst[1], Inst[2], Inst[3])
+        if(Inst[1] != "r0"):
+            Reg[Inst[1]] = station["Vj"]+station["Vk"]
+        fix_after_write(station["Name"], Inst[1])
         station = removeInst(station)
 
     elif(station["OP"] == "nand"):
-        Reg[Inst[1]] = ~(station["Vj"] & station["Vk"])
-        fix_after_write(station["Name"], Inst[1], Inst[2], Inst[3])
+        if(Inst[1] != "r0"):
+            Reg[Inst[1]] = ~(station["Vj"] & station["Vk"])
+        fix_after_write(station["Name"], Inst[1])
         station = removeInst(station)
 
     elif( station["OP"] == "addi"):
-        Reg[Inst[1]] = station["Vj"]+station["Imm"]
-        fix_after_write(station["Name"], Inst[1], Inst[2], None)
+        if(Inst[1] != "r0"):
+            Reg[Inst[1]] = station["Vj"]+station["Imm"]
+        fix_after_write(station["Name"], Inst[1])
         station = removeInst(station)
 
     elif(station["OP"] == "div"):
-        Reg[Inst[1]] = station["Vj"]/station["Vk"]
-        fix_after_write(station["Name"], Inst[1], Inst[2], Inst[3])
+        if(Inst[1] != "r0"):
+            Reg[Inst[1]] = station["Vj"]/station["Vk"]
+        fix_after_write(station["Name"], Inst[1])
         station = removeInst(station)
 
     elif(station["OP"] == "bne"):
-        fix_after_write(station["Name"], None, Inst[1], Inst[2])
+        fix_after_write(station["Name"], None)
         station = removeInst(station)
 
     elif(station["OP"] == "call"):
         Reg["r1"] = station["Imm"]+1
-        fix_after_write(station["Name"], "r1", None, None)
+        fix_after_write(station["Name"], "r1")
         station = removeInst(station)
 
     elif(station["OP"] == "ret"):
-        fix_after_write(station["Name"], None, "r1", None)
+        fix_after_write(station["Name"], None)
         station = removeInst(station)
 
 def simulate(clk, PC):
@@ -496,20 +499,20 @@ def simulate(clk, PC):
         if(len(write_queue)):
             i = write_queue[0]
             WriteBack(instructions[i], inst_RS[i])
-            print("Inst ", i, "Written")
             write_queue.pop(0)
 
     if(clk != 0):
         for j in range(len(inst_RS)):
             exec_time[j] = canExecute(j, inst_RS[j], exec_time[j])
-            print("Executed inst", j, " ", exec_time[j], " cycles")
             if(can_write[j]):
                 write_queue.append(j)
                 can_write[j] = 0
 
-    if(issue(instructions[PC], PC)):
-        print("Issued Inst ", PC)
-        return(PC + 1)
+    if(PC < len(instructions)):
+        if(issue(instructions[PC], PC)):
+            return(PC + 1)
+        else:
+            return PC
     else:
         return PC
         
@@ -517,13 +520,16 @@ def simulate(clk, PC):
 def top ():
     clk = 0
     PC = 0
-   
-    while(True):
-        go = input()
-        if(go):
-            PC = simulate(clk, PC)
-            if(PC >= len(instructions)):
-                PC = len(instructions)-1
-            clk += 1
+    
+    for i in range (30):
+        PC = simulate(clk, PC)
+        clk += 1
+
+    print(Reg)
+    # while(True):
+    #     go = input()
+    #     if(go):
+    #         PC = simulate(clk, PC)
+    #         clk += 1
 
 top()
