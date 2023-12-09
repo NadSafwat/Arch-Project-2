@@ -18,6 +18,8 @@ mem = [0,3,5,5,6,7,8,9,96,3,2,5]
 
 inst_RS = []
 exec_time = []
+can_write = []
+write_queue = []
 
 # for reg/Qi table at the bottom of every slide
 RegisterStat = {       
@@ -32,6 +34,15 @@ RegisterStat = {
     "r8": None
 }
 
+def fix_after_write(functional_unit_name, rd):
+    for rs in ReservationStation:
+        if(rs["Qj"] == functional_unit_name):
+            rs["Qj"] = None
+        if(rs["Qk"] == functional_unit_name):
+            rs["Qk"] = None
+    
+    if(rd is not None):
+        RegisterStat[rd] = None
 
 def is_valid_instruction(instruction):
     if (instruction[0:4] == "load" or instruction[0:5] == "store"):
@@ -145,6 +156,7 @@ def issue(Inst, PC):
             RegisterStat[Inst[1]] = station["Name"]
             inst_RS.append(station)
             exec_time.append(0)
+            can_write.append(0)
             return True
         else:
             return False
@@ -171,6 +183,7 @@ def issue(Inst, PC):
 
             inst_RS.append(station)
             exec_time.append(0)
+            can_write.append(0)
             return True
         else:
             return False         
@@ -198,6 +211,7 @@ def issue(Inst, PC):
             RegisterStat[Inst[1]] = station["Name"]
             inst_RS.append(station) 
             exec_time.append(0)
+            can_write.append(0)
             return True
         else:
             return False                 
@@ -221,6 +235,7 @@ def issue(Inst, PC):
             RegisterStat[Inst[1]] = station["Name"]
             inst_RS.append(station)
             exec_time.append(0)
+            can_write.append(0)
             return True
         else:
             return False
@@ -246,6 +261,7 @@ def issue(Inst, PC):
             
             inst_RS.append(station)
             exec_time.append(0)
+            can_write.append(0)
             return True
         else:
             return False
@@ -265,6 +281,7 @@ def issue(Inst, PC):
             RegisterStat["r1"] = station["Name"]
             inst_RS.append(station)
             exec_time.append(0)
+            can_write.append(0)
             return True
         else:
             return False
@@ -285,6 +302,7 @@ def issue(Inst, PC):
                 station["Qj"] = RegisterStat["r1"]
             inst_RS.append(station)
             exec_time.append(0)
+            can_write.append(0)
             return True
         else:
             return False
@@ -312,125 +330,158 @@ instructions = [["load", "r6", "0", "r2"],
                 ["addi", "r1", "r1", "1"], 
                 ["add", "r6", "r1","r5"]]
 
-def issue_test(instruction_list):
-    i=1
-    for Inst in instruction_list:
-        if(canIssue(Inst)[0] == True):
-            issue(Inst)
-            print("======================================")
-            print(i, RegisterStat)
-        elif(canIssue(Inst)[0] == False):
-            print("Instruction cannot be issued")
-        i+=1
-    print("******************************")
-    print(ReservationStation)
+def removeInst(station):
+    station["Busy"] = 'N'
+    station["OP"] = None
+    station["Vj"] = None
+    station["Vk"] = None
+    station["Qj"] = None
+    station["Qk"] = None
+    station["A"] = None
+    station["Imm"] = None
 
-def canExecute(station, count):
+    return station
+    
+def canExecute(j, station, count):
     if(station["OP"] == "load"):
         if(station["Qj"] is None and count < 3):
-            return True
+            if (count == 1):
+                station["A"] = station["Vj"] + station["A"]
+            if(count == 2):
+                can_write[j] = 1
+            return (count+1)
         else:
-            return False
+            return count
 
     elif(station["OP"] == "store"):
         if(station["Qj"] is None and station["Qk"] is None and count < 3):
-            return True
+            if (count == 1):
+                station["A"] = station["Vk"] + station["A"]
+            if(count == 2):
+                can_write[j] = 1
+            return (count+1)
         else:
-            return False         
+            return count
+                 
     elif(station["OP"] == "add"):
         if(station["Qj"] is None and station["Qk"] is None and count < 2):
-            return True
+            if(count == 1):
+                can_write[j] = 1
+            return (count+1)
         else:
-            return False
+            return count
+        
     elif (station["OP"] == "nand"):
         if(station["Qj"] is None and station["Qk"] is None and count < 1):
-            return True
+            can_write[j] = 1
+            return (count+1)
         else:
-            return False
+            return count
  
     elif(station["OP"] == "div"): 
         if(station["Qj"] is None and station["Qk"] is None and count < 10):
-            return True
+            if(count == 9):
+                can_write[j] = 1
+            return (count+1)
         else:
-            return False 
+            return count
     
     elif(station["OP"] == "bne"): 
         if(station["Qj"] is None and station["Qk"] is None and count < 1):
-            return True
+            if(station["Vj"] != station["Vk"]):
+                station["A"] =  station["Imm"] + station["A"] + 1
+            can_write[j] = 1
+            return (count+1)
         else:
-            return False
+            return count
        
     elif( station["OP"] == "addi"):
         if( station["Qj"] is None and count < 2):
-            return True
+            if(count == 1):
+                can_write[j] = 1
+            return (count+1)
         else:
-            return False
+            return count
     
     elif(station["OP"] == "call"):
-        return (count < 1) 
+        if(count < 1):
+            can_write[j] = 1
+            return (count+1)
+        else:
+            return count 
     
     elif(station["OP"] == "ret"):
         if(station["Qj"] is None and count < 1):
-            return True
+            can_write[j] = 1 
+            return (count+1)
         else:
-            return False    
+            return count    
 
-def Execute(Inst, station, count):
+def WriteBack(Inst, station):
     if(station["OP"] == "load"):
-        if (count == 1):
-            station["A"] = station["Vj"] + station["A"]
-        elif (count == 2):
-            Reg[Inst[1]] = mem[station["A"]]
-        return(count+1)
+        Reg[Inst[1]] = mem[station["A"]]
+        fix_after_write(station["Name"], Inst[1])
+        station = removeInst(station)
 
     elif(station["OP"] == "store"):
-        if (count == 1):
-            station["A"] = station["Vk"] + station["A"]
-        elif (count == 2):
-            mem[station["A"]] = station["Vj"]
-        return(count+1) 
-    
+        mem[station["A"]] = station["Vj"]
+        fix_after_write(station["Name"], None)
+        station = removeInst(station)
+
     elif(station["OP"] == "add"):
-        if (count == 1):
-            Reg[Inst[1]] = station["Vj"]+station["Vk"]
-        return(count+1)
-    
+        Reg[Inst[1]] = station["Vj"]+station["Vk"]
+        fix_after_write(station["Name"], Inst[1])
+        station = removeInst(station)
+
     elif(station["OP"] == "nand"):
         Reg[Inst[1]] = ~(station["Vj"] & station["Vk"])
-        return(count+1)
-    
+        fix_after_write(station["Name"], Inst[1])
+        station = removeInst(station)
+
     elif( station["OP"] == "addi"):
-        if (count == 1):
-            Reg[Inst[1]] = station["Vj"]+station["Imm"]
-        return(count+1)
-    
+        Reg[Inst[1]] = station["Vj"]+station["Imm"]
+        fix_after_write(station["Name"], Inst[1])
+        station = removeInst(station)
+
     elif(station["OP"] == "div"):
-        if (count == 9):
-            Reg[Inst[1]] = station["Vj"]/station["Vk"]
-        return(count+1)
+        Reg[Inst[1]] = station["Vj"]/station["Vk"]
+        fix_after_write(station["Name"], Inst[1])
+        station = removeInst(station)
 
     elif(station["OP"] == "bne"):
-        if(station["Vj"] != station["Vk"]):
-            station["A"] =  station["Imm"] + station["A"] + 1
-        return(count+1)
-   
+        fix_after_write(station["Name"], None)
+        station = removeInst(station)
+
     elif(station["OP"] == "call"):
         Reg["r1"] = station["Imm"]+1
-        return(count+1)
-    
+        fix_after_write(station["Name"], "r1")
+        station = removeInst(station)
+
     elif(station["OP"] == "ret"):
-        return(count+1)
+        fix_after_write(station["Name"], None)
+        station = removeInst(station)
 
 def simulate(clk, PC):
+    if(clk > 1):
+        if(len(write_queue)):
+            i = write_queue[0]
+            WriteBack(instructions[i], inst_RS[i])
+            print("Inst ", i, "Written")
+            write_queue.pop(0)
+
     if(clk != 0):
         for j in range(len(inst_RS)):
-            if(canExecute(inst_RS[j], exec_time[j])):
-                print("Executed Instruction ", j, " ", exec_time[j], " cycles")
-                exec_time[j] = Execute(instructions[j], inst_RS[j], exec_time[j])
+            exec_time[j] = canExecute(j, inst_RS[j], exec_time[j])
+            print("Executed inst", j, " ", exec_time[j], " cycles")
+            if(can_write[j]):
+                write_queue.append(j)
+                can_write[j] = 0
 
     if(issue(instructions[PC], PC)):
         print("Issued Inst ", PC)
         return(PC + 1)
+    else:
+        return PC
         
     
 
