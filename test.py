@@ -64,18 +64,28 @@ def IntializeMem ():
 
 def is_valid_instruction(instruction):
     if (instruction[0:4] == "load" or instruction[0:5] == "store"):
-       if(instruction[7:9]=="32"):
-            return False
-       else:
-            instruction_pattern = re.compile(r'(load|store)r[0-7],(-?(?:[0-9]|[1-2][0-9]|3[0-2]))\(r[0-7]\)$')
+        if(instruction[7:9]=="32"):
+           return False
+        instruction_pattern = re.compile(r'(load|store)r[0-7],(-?(?:[0-9]|[1-2][0-9]|3[0-2]))\(r[0-7]\)$')
+
     elif(instruction[0:3] == "bne"):
-        instruction_pattern = re.compile(r'bner[0-7],r[0-7],[0-9]+$')
+        if(instruction[9:11]=="32"):
+            return False
+        instruction_pattern = re.compile(r'bner[0-7],r[0-7],(-?(?:[0-9]|[1-2][0-9]|3[0-2]))$')
+
     elif(instruction[0:4] == "call"):
-        instruction_pattern = re.compile(r'call[0-9]+$')
+        if(instruction[4:6]=="32"):
+            return False
+        instruction_pattern = re.compile(r'call(-?(?:[0-9]|[1-2][0-9]|3[0-2]))$')
+
     elif(instruction[0:3] == "ret"):
         instruction_pattern = re.compile(r'ret$')
+
     elif(instruction[0:4] == "addi"):
-        instruction_pattern = re.compile(r'addir[0-7],r[0-7],[0-9]+$')
+        if(instruction[10:12]=="32"):
+            return False
+        instruction_pattern = re.compile(r'addir[0-7],r[0-7],(-?(?:[0-9]|[1-2][0-9]|3[0-2]))$')
+
     elif(instruction[0:3] == "add" or instruction[0:4] == "nand" or instruction[0:3] == "div"):
         instruction_pattern = re.compile(r'(add|nand|div)r[0-7],r[0-7],r[0-7]$')
 
@@ -124,23 +134,36 @@ def getUserInptMem():
                 except: print("Invalid Input")
         except: return 
 
-instructions = [["load", "r5", "0", "r2"],
-                ["load", "r2", "1", "r2"], 
-                ["div","r0","r2","r4"], 
-                ["add", "r4","r2","r6"], 
-                ["bne","r1","r2","2"],
-                ["add", "r2", "r1","r5"], 
-                ["addi", "r1", "r1", "1"], 
-                ["add", "r6", "r1","r5"]]
+instructions = [["load", "r5", "0", "r2"],  #0
+                ["load", "r2", "1", "r2"],  #1
+                ["div","r0","r2","r4"],     #2
+                ["add", "r4","r2","r6"],    #3
+                ["bne","r1","r2","2"],      #4  
+                ["add", "r2", "r1","r5"],   #5
+                ["ret", None, None, None],  #6
+                ["add", "r6", "r1","r5"],   #7
+                ["bne","r5","r6","5"],      #8
+                ["store", "r1",2,"r2"],     #9
+                ["bne", "r1","r2","1"],     #10
+                ["call", -5, None, None],   #11
+                ["add", "r0","r0","r0"]     #12
+                ]
+                
+                
 
 IntializeMem()
-# getUserInptMem()
+getUserInptMem()
 # instructions = getUserInptInst()
 
 # for reg/Qi table at the bottom of every slide
-def fix_after_write(functional_unit_name, rd):
+def fix_after_write(functional_unit_name, inst):
+    if (inst[0] == "store" or inst[0]== "bne" or inst[0]=="ret" ):
+        rd = None
+    elif (inst[0] == "call"):
+        rd = "r1"
+    else:
+        rd = inst[1]
     for rs in ReservationStation:
-      
         if(rs["Qj"] == functional_unit_name):
             rs["Qj"] = None
             rs["Vj"] = Reg[rd]
@@ -523,36 +546,36 @@ def WriteBack(Inst, station,PC):
     if(station["OP"] == "load"):
         if(Inst[1] != "r0"):
             Reg[Inst[1]] = mem[station["A"]]
-        fix_after_write(station["Name"], Inst[1])
+        fix_after_write(station["Name"], Inst)
         station = removeInst(station)
 
     elif(station["OP"] == "store"):
         mem[station["A"]] = station["Vj"]
-        fix_after_write(station["Name"], None)
+        fix_after_write(station["Name"], Inst)
         station = removeInst(station)
 
     elif(station["OP"] == "add"):
         if(Inst[1] != "r0"):
             Reg[Inst[1]] = station["Vj"]+station["Vk"]
-        fix_after_write(station["Name"], Inst[1])
+        fix_after_write(station["Name"], Inst)
         station = removeInst(station)
 
     elif(station["OP"] == "nand"):
         if(Inst[1] != "r0"):
             Reg[Inst[1]] = ~(station["Vj"] & station["Vk"])
-        fix_after_write(station["Name"], Inst[1])
+        fix_after_write(station["Name"], Inst)
         station = removeInst(station)
 
     elif( station["OP"] == "addi"):
         if(Inst[1] != "r0"):
             Reg[Inst[1]] = station["Vj"]+station["Imm"]
-        fix_after_write(station["Name"], Inst[1])
+        fix_after_write(station["Name"], Inst)
         station = removeInst(station)
 
     elif(station["OP"] == "div"):
         if(Inst[1] != "r0"):
             Reg[Inst[1]] = station["Vj"]/station["Vk"]
-        fix_after_write(station["Name"], Inst[1])
+        fix_after_write(station["Name"], Inst)
         station = removeInst(station)
 
     elif(station["OP"] == "bne"):
@@ -561,20 +584,20 @@ def WriteBack(Inst, station,PC):
             Number_of_branches_taken += 1
             PC = station["A"]
         BranchWritten = True
-        fix_after_write(station["Name"], None)
+        fix_after_write(station["Name"], Inst)
         station = removeInst(station)
 
     elif(station["OP"] == "call"):
         Reg["r1"] = station["Imm"]+1
         PC = station["A"]
         call_ret_written = True
-        fix_after_write(station["Name"], "r1")
+        fix_after_write(station["Name"], Inst)
         station = removeInst(station)
 
     elif(station["OP"] == "ret"):
         PC = station["A"]
         call_ret_written = True
-        fix_after_write(station["Name"], None)
+        fix_after_write(station["Name"], Inst)
         station = removeInst(station)
     
     return PC
@@ -628,8 +651,13 @@ def simulate(clk, PC):
             if(issue_flag):
                 print("Issued Inst ", PC)
         if(BranchTaken):
+            stall_issuing = False
+            for i in range(BranchIndex+1, len(inst_RS)):
+                fix_after_write(inst_RS[i]["Name"], inst_issed[i])
+                inst_RS[i] = removeInst(inst_RS[i])
             inst_issed = inst_issed[:BranchIndex+1]
             inst_RS = inst_RS[:BranchIndex+1]
+           
             return PC_target
         elif(stall_issuing):
             return (PC)
@@ -644,6 +672,7 @@ def top ():
     PC = 0
 
     while(True):
+        
         go = input()
         if(go):
             PC = simulate(clk, PC)
