@@ -142,10 +142,10 @@ instructions = [["load", "r5", "0", "r2"],  #0
                 ["add", "r2", "r1","r5"],   #5
                 ["ret", None, None, None],  #6
                 ["add", "r6", "r1","r5"],   #7
-                ["bne","r5","r6","5"],      #8
+                ["bne","r6","r6","5"],      #8
                 ["store", "r1",2,"r2"],     #9
-                ["bne", "r1","r2","1"],     #10
-                ["call", -5, None, None],   #11
+                ["bne", "r1","r2",0],     #10
+                ["call", 6, None, None],   #11
                 ["add", "r0","r0","r0"]     #12
                 ]
                 
@@ -579,6 +579,7 @@ def WriteBack(Inst, station,PC):
         station = removeInst(station)
 
     elif(station["OP"] == "bne"):
+        print(station["Vj"], station["Vk"])
         if(station["Vj"] != station["Vk"]):
             BranchTaken = True
             Number_of_branches_taken += 1
@@ -633,7 +634,7 @@ def simulate(clk, PC):
             i = write_queue[0]
             written_FU = inst_RS[i]["Name"]
             PC_target = WriteBack(inst_issed[i], inst_RS[i],PC)
-            print("Inst ", i, "Written")                
+            print("Inst ", inst_issed[i][0], "Written")                
             write_queue.pop(0)
 
     if(clk != 0):
@@ -650,16 +651,16 @@ def simulate(clk, PC):
             issue_flag = issue(instructions[PC], PC, written_FU)
             if(issue_flag):
                 print("Issued Inst ", PC)
-        if(BranchTaken):
+        if(BranchTaken or call_ret_written):
             stall_issuing = False
+            call_ret_issued = False
             for i in range(BranchIndex+1, len(inst_RS)):
                 fix_after_write(inst_RS[i]["Name"], inst_issed[i])
                 inst_RS[i] = removeInst(inst_RS[i])
             inst_issed = inst_issed[:BranchIndex+1]
             inst_RS = inst_RS[:BranchIndex+1]
-           
             return PC_target
-        elif(stall_issuing):
+        elif(stall_issuing or not issue_flag):
             return (PC)
         else:
             return(PC+1)
