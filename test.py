@@ -58,7 +58,7 @@ stall_executing = False
 Number_of_branches = 0
 Number_of_branches_taken = 0
 
-clk = 0
+clk = -1
 
 Reg = {
     "r0": 0,
@@ -441,9 +441,12 @@ def canExecute(j, station, count, PC):
     if(station["OP"] == "load"):
         try:
             if(station["Qj"] is None and count < 3):
+                if(count == 0):
+                    TraceTable[j]["start_exec"] = clk
                 if (count == 1):
                     station["A"] = station["Vj"] + station["A"]
                 if(count == 2):
+                    TraceTable[j]["end_exec"] = clk
                     can_write[j] = 1
                 return (count+1)
             else:
@@ -454,9 +457,12 @@ def canExecute(j, station, count, PC):
     elif(station["OP"] == "store"):
         try:
             if(station["Qj"] is None and station["Qk"] is None and count < 3):
+                if(count == 0):
+                    TraceTable[j]["start_exec"] = clk
                 if (count == 1):
                     station["A"] = station["Vk"] + station["A"]
                 if(count == 2):
+                    TraceTable[j]["end_exec"] = clk
                     can_write[j] = 1
                 return (count+1)
             else:
@@ -467,7 +473,10 @@ def canExecute(j, station, count, PC):
     elif(station["OP"] == "add"):
         try:
             if(station["Qj"] is None and station["Qk"] is None and count < 2):
+                if(count == 0):
+                    TraceTable[j]["start_exec"] = clk
                 if(count == 1):
+                    TraceTable[j]["end_exec"] = clk
                     can_write[j] = 1
                 return (count+1)
             else:
@@ -478,6 +487,8 @@ def canExecute(j, station, count, PC):
     elif (station["OP"] == "nand"):
         try:
             if(station["Qj"] is None and station["Qk"] is None and count < 1):
+                TraceTable[j]["start_exec"] = clk
+                TraceTable[j]["end_exec"] = clk
                 can_write[j] = 1
                 return (count+1)
             else:
@@ -488,7 +499,10 @@ def canExecute(j, station, count, PC):
     elif(station["OP"] == "div"):
         try: 
             if(station["Qj"] is None and station["Qk"] is None and count < 10):
+                if(count == 0):
+                    TraceTable[j]["start_exec"] = clk
                 if(count == 9):
+                    TraceTable[j]["end_exec"] = clk
                     can_write[j] = 1
                 return (count+1)
             else:
@@ -501,6 +515,8 @@ def canExecute(j, station, count, PC):
             if(station["Qj"] is None and station["Qk"] is None and count < 1):
                 if(station["Vj"] != station["Vk"]):
                     station["A"] =  station["Imm"] + station["A"] + 1
+                TraceTable[j]["start_exec"] = clk
+                TraceTable[j]["end_exec"] = clk
                 Number_of_branches += 1
                 can_write[j] = 1
                 return (count+1)
@@ -512,7 +528,10 @@ def canExecute(j, station, count, PC):
     elif( station["OP"] == "addi"):
         try:
             if( station["Qj"] is None and count < 2):
+                if(count == 0):
+                    TraceTable[j]["start_exec"] = clk
                 if(count == 1):
+                    TraceTable[j]["end_exec"] = clk
                     can_write[j] = 1
                 return (count+1)
             else:
@@ -523,6 +542,8 @@ def canExecute(j, station, count, PC):
     elif(station["OP"] == "call"):
         try:
             if(count < 1):
+                TraceTable[j]["start_exec"] = clk
+                TraceTable[j]["end_exec"] = clk
                 can_write[j] = 1
                 return (count+1)
             else:
@@ -533,6 +554,8 @@ def canExecute(j, station, count, PC):
     elif(station["OP"] == "ret"):
         try:
             if(station["Qj"] is None and count < 1):
+                TraceTable[j]["start_exec"] = clk
+                TraceTable[j]["end_exec"] = clk
                 can_write[j] = 1 
                 return (count+1)
             else:
@@ -586,7 +609,6 @@ def WriteBack(Inst, station,PC):
         station = removeInst(station)
 
     elif(station["OP"] == "bne"):
-        print(station["Vj"], station["Vk"])
         if(station["Vj"] != station["Vk"]):
             BranchTaken = True
             Number_of_branches_taken += 1
@@ -615,6 +637,7 @@ def simulate(clk, PC):
 
     global inst_issed
     global inst_RS
+    global TraceTable
 
     global stall_issuing
     global call_ret_written
@@ -652,7 +675,6 @@ def simulate(clk, PC):
         for j in range(len(inst_RS)):
             if(j <= BranchIndex):
                 exec_time[j] = canExecute(j, inst_RS[j], exec_time[j],PC)
-                # print("Executed inst", inst_issed[j][0] , " ", exec_time[j], " cycles")
                 if(can_write[j]):
                     write_queue.append(j)
                     can_write[j] = 0
@@ -672,6 +694,7 @@ def simulate(clk, PC):
                 inst_RS[i] = removeInst(inst_RS[i])
             inst_issed = inst_issed[:BranchIndex+1]
             inst_RS = inst_RS[:BranchIndex+1]
+            TraceTable = TraceTable[:BranchIndex+1]
             return PC_target
         elif(stall_issuing or not issue_flag):
             return (PC)
@@ -700,15 +723,15 @@ def print_TraceTable():
     rows = [x.values() for x in TraceTable]
     print(tabulate.tabulate(rows, header,tablefmt="fancy_grid"))
 
-def top ():
+def top (go):
 
     global clk
 
     PC = 0
 
     while(True):
-        go = input()
         if(go != '0'):
+            clk += 1
             os.system("cls")
             PC = simulate(clk, PC)
             print("Clock Cycle: ", clk)
@@ -720,24 +743,19 @@ def top ():
             print_RegStat()
             print("\nRegister Values: ")
             print_Registers()
-            clk += 1
-            
-            
+            print("\nPress Enter to continue or 0 to Exit: ")
+            go = input() 
         else:
             return                  
 
 IntializeMem()
-# getUserInptMem()
-# instructions = getUserInptInst()
-top()
+getUserInptMem()
+instructions = getUserInptInst()
+top(" ")
 
-# print(Reg)
-# # print(mem)
-# print(inst_issed)
+print("Number of Branches: ", Number_of_branches)
+print("Number of Branches Taken: ", Number_of_branches_taken)
 
-# print("Number of Branches: ", Number_of_branches)
-# print("Number of Branches Taken: ", Number_of_branches_taken)
-
-# print("IC: ", len(inst_issed))
-# print("Clock Cycles: ", clk)
-# print("IPC: ", len(inst_issed)/clk)
+print("IC: ", len(inst_issed))
+print("Clock Cycles: ", clk)
+print("IPC: ", len(inst_issed)/clk)
