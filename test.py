@@ -34,6 +34,13 @@ exec_time = []
 can_write = []
 write_queue = []
 instructions = []
+tracing_table = [{
+    "instruction": None,
+    "issue": None,
+    "start_exec": None,
+    "end_exec": None,
+    "write": None,
+}]
 
 call_ret_issued = False
 call_ret_written = False
@@ -638,7 +645,8 @@ def simulate(clk, PC):
             i = write_queue[0]
             written_FU = inst_RS[i]["Name"]
             PC_target = WriteBack(inst_issed[i], inst_RS[i],PC)
-            # print("Inst ", inst_issed[i][0], "Written")                
+            # print("Inst ", inst_issed[i][0], "Written")     
+            write_clk = clk           
             write_queue.pop(0)
 
     if(clk != 0):
@@ -655,6 +663,7 @@ def simulate(clk, PC):
             issue_flag = issue(instructions[PC], PC, written_FU)
             # if(issue_flag):
             #     print("Issued Inst ", PC)
+            issue_clk = clk
         if(BranchTaken or call_ret_written):
             stall_issuing = False
             call_ret_issued = False
@@ -668,6 +677,8 @@ def simulate(clk, PC):
             return (PC)
         else:
             return(PC+1)
+        
+        tracing_table.append({"instruction": instructions[PC], "issue": issue_clk, "start_exec": None, "end_exec": None, "write": write_clk})
     else:
         return PC
     
@@ -713,13 +724,16 @@ def top ():
 
 top()
 
-print(Reg)
-# print(mem)
-print(inst_issed)
+for i in range(len(tracing_table)):
+    print(tracing_table[i])
 
-print("Number of Branches: ", Number_of_branches)
-print("Number of Branches Taken: ", Number_of_branches_taken)
+# print(Reg)
+# # print(mem)
+# print(inst_issed)
 
-print("IC: ", len(inst_issed))
-print("Clock Cycles: ", clk)
-print("IPC: ", len(inst_issed)/clk)
+# print("Number of Branches: ", Number_of_branches)
+# print("Number of Branches Taken: ", Number_of_branches_taken)
+
+# print("IC: ", len(inst_issed))
+# print("Clock Cycles: ", clk)
+# print("IPC: ", len(inst_issed)/clk)
