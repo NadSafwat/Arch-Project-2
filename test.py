@@ -1,4 +1,6 @@
 import re
+import tabulate
+import os
 
 LOAD1 = {"Name" : "Load1" ,"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None, "Imm":None}
 LOAD2 = {"Name" : "Load2" ,"Busy": 'N', "OP":None, "Vj":None, "Vk":None, "Qj": None, "Qk":None, "A":None, "Imm":None}
@@ -45,6 +47,8 @@ stall_executing = False
 
 Number_of_branches = 0
 Number_of_branches_taken = 0
+
+clk = 0
 
 Reg = {
     "r0": 0,
@@ -634,14 +638,14 @@ def simulate(clk, PC):
             i = write_queue[0]
             written_FU = inst_RS[i]["Name"]
             PC_target = WriteBack(inst_issed[i], inst_RS[i],PC)
-            print("Inst ", inst_issed[i][0], "Written")                
+            # print("Inst ", inst_issed[i][0], "Written")                
             write_queue.pop(0)
 
     if(clk != 0):
         for j in range(len(inst_RS)):
             if(j <= BranchIndex):
                 exec_time[j] = canExecute(j, inst_RS[j], exec_time[j])
-                print("Executed inst", inst_issed[j][0] , " ", exec_time[j], " cycles")
+                # print("Executed inst", inst_issed[j][0] , " ", exec_time[j], " cycles")
                 if(can_write[j]):
                     write_queue.append(j)
                     can_write[j] = 0
@@ -649,8 +653,8 @@ def simulate(clk, PC):
     if(PC < len(instructions)):
         if (not stall_issuing):
             issue_flag = issue(instructions[PC], PC, written_FU)
-            if(issue_flag):
-                print("Issued Inst ", PC)
+            # if(issue_flag):
+            #     print("Issued Inst ", PC)
         if(BranchTaken or call_ret_written):
             stall_issuing = False
             call_ret_issued = False
@@ -667,20 +671,45 @@ def simulate(clk, PC):
     else:
         return PC
     
-        
+def print_RS():
+    header = ReservationStation[0].keys()
+    rows = [x.values() for x in ReservationStation]
+    print(tabulate.tabulate(rows, header,tablefmt="fancy_grid"))
+
+def print_RegStat():
+    header = RegisterStat.keys()
+    rows = [RegisterStat.values()]
+    print(tabulate.tabulate(rows, header, tablefmt="fancy_grid"))
+
+def print_Registers():
+    header = Reg.keys()
+    rows = [Reg.values()]
+    print(tabulate.tabulate(rows, header, tablefmt="fancy_grid"))
+
 def top ():
-    clk = 0
+
+    global clk
+
     PC = 0
 
     while(True):
-        
         go = input()
-        if(go):
+        if(go != '0'):
+            os.system("cls")
             PC = simulate(clk, PC)
-            print("==============================================")
+            print("Clock Cycle: ", clk)
+            print("\nResrvation Station: ")
+            print_RS()
+            print("\nRegister Stat Table: ")
+            print_RegStat()
+            print("\nRegister Values: ")
+            print_Registers()
             clk += 1
+            
+            
         else:
             return                  
+
 
 top()
 
@@ -692,3 +721,5 @@ print("Number of Branches: ", Number_of_branches)
 print("Number of Branches Taken: ", Number_of_branches_taken)
 
 print("IC: ", len(inst_issed))
+print("Clock Cycles: ", clk)
+print("IPC: ", len(inst_issed)/clk)
