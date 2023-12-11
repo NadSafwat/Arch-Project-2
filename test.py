@@ -753,9 +753,13 @@ getUserInptMem()
 instructions = getUserInptInst()
 top(" ")
 
-print("Number of Branches: ", Number_of_branches)
+print("\nNumber of Branches: ", Number_of_branches)
 print("Number of Branches Taken: ", Number_of_branches_taken)
+if(Number_of_branches_taken > 0):
+    print("Branch Misprediction: ", (Number_of_branches-Number_of_branches_taken)/Number_of_branches, "%")
+else:
+    print("Branch Misprediction: 0%")
 
-print("IC: ", len(inst_issed))
+print("\nIC: ", len(inst_issed))
 print("Clock Cycles: ", clk)
 print("IPC: ", len(inst_issed)/clk)
