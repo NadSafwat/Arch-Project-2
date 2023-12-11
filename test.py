@@ -42,6 +42,7 @@ tracing_table = {
     "write": None,
 }
 
+starting_adress = 0
 
 TraceTable = []
 
@@ -57,20 +58,34 @@ stall_executing = False
 
 Number_of_branches = 0
 Number_of_branches_taken = 0
-
-clk = -1
+write_value = 0
+clk = 0
 
 Reg = {
     "r0": 0,
-    "r1": 7,
-    "r2": 0,
-    "r3": 0,
-    "r4": 0,
-    "r5": 0,
-    "r6": 1,
-    "r7": 0,
-    "r8": 0
+    "r1": 1,
+    "r2": 2,
+    "r3": 3,
+    "r4": 4,
+    "r5": 5,
+    "r6": 6,
+    "r7": 7,
+    "r8": 8
 }
+
+# instructions = [["load", "r5", "0", "r2"],  #0
+#                 ["load", "r2", "1", "r2"],  #1
+#                 ["div","r0","r2","r4"],     #2
+#                 ["add", "r4","r2","r6"],    #3
+#                 ["bne","r1","r2","2"],      #4  
+#                 ["add", "r2", "r1","r5"],   #5
+#                 ["ret", None, None, None],  #6
+#                 ["add", "r6", "r1","r5"],   #7
+#                 ["bne","r6","r6","5"],      #8
+#                 ["store", "r1",2,"r2"],     #9
+#                 ["bne", "r1","r2",0],     #10
+#                 ["call", 6, None, None],   #11
+#                 ["add", "r0","r0","r0"]]     #12
 
 def IntializeMem ():
     for i in range(6400):
@@ -108,7 +123,7 @@ def is_valid_instruction(instruction):
 def getUserInptInst():
     instructions_to_run=[]
     print("Available instructions are: \nload rA, offset(rB) \nstore rA, offset(rB) \nbne rA, rB, offset \ncall label \nret \nadd rA, rB, rC \naddi rA, rB, imm \nnand rA, rB, rC \ndiv rA, rB, rC")
-    print("Please enter your instructions one by one or 0 to signal end")
+    print("\nPlease enter your instructions one by one or 0 to signal end")
     while(True):
         userInst = input(": ").lower().replace(" ","")
         if (userInst == '0'):
@@ -132,6 +147,7 @@ def getUserInptInst():
                 instructions_to_run.append(userInstList)
 
 def getUserInptMem():
+    global starting_adress
     print("Please enter your required memory values or press enter to signal end: ")
     while(True):
         try: 
@@ -146,38 +162,18 @@ def getUserInptMem():
                     else:
                         mem[addr] = data_in
                 except: print("Invalid Input")
-        except: return 
-
-instructions = [["load", "r5", "0", "r2"],  #0
-                ["load", "r2", "1", "r2"],  #1
-                ["div","r0","r2","r4"],     #2
-                ["add", "r4","r2","r6"],    #3
-                ["bne","r1","r2","2"],      #4  
-                ["add", "r2", "r1","r5"],   #5
-                ["ret", None, None, None],  #6
-                ["add", "r6", "r1","r5"],   #7
-                ["bne","r6","r6","5"],      #8
-                ["store", "r1",2,"r2"],     #9
-                ["bne", "r1","r2",0],     #10
-                ["call", 6, None, None],   #11
-                ["add", "r0","r0","r0"]]     #12
+        except:
+            starting_adress = int(input("Please enter your starting adress: "))
+            return
  
-def fix_after_write(functional_unit_name, inst):
-    if (inst[0] == "store" or inst[0]== "bne" or inst[0]=="ret" ):
-        rd = None
-    elif (inst[0] == "call"):
-        rd = "r1"
-    else:
-        rd = inst[1]
+def fix_after_write(functional_unit_name, value):
     for rs in ReservationStation:
         if(rs["Qj"] == functional_unit_name):
             rs["Qj"] = None
-            rs["Vj"] = Reg[rd]
+            rs["Vj"] = value
         if(rs["Qk"] == functional_unit_name):
             rs["Qk"] = None
-            rs["Vk"] = Reg[rd]
-    if(rd is not None):
-        RegisterStat[rd] = None
+            rs["Vk"] = value
 
 def canIssue(Inst, written_FU):
     if(Inst[0] == "load"):
@@ -252,8 +248,9 @@ def issue(Inst, PC, written_FU):
             if(Inst[3] != "r0" and RegisterStat[Inst[3]] != None):       #CHECK FOR RAW
                 station["Vj"] = None
                 station["Qj"] = RegisterStat[Inst[3]] 
-        
-            RegisterStat[Inst[1]] = station["Name"]
+
+            if(Inst[1] != "r0"):
+                RegisterStat[Inst[1]] = station["Name"]
             inst_RS.append(station)
             inst_issed.append(Inst)
             exec_time.append(0)
@@ -311,7 +308,9 @@ def issue(Inst, PC, written_FU):
                 station["Vk"] = None
                 station["Qk"] = RegisterStat[Inst[3]]
 
-            RegisterStat[Inst[1]] = station["Name"]
+            if(Inst[1] != "r0"):
+                RegisterStat[Inst[1]] = station["Name"]
+
             inst_RS.append(station) 
             inst_issed.append(Inst)
             exec_time.append(0)
@@ -337,7 +336,9 @@ def issue(Inst, PC, written_FU):
                 station["Vj"] = None
                 station["Qj"] = RegisterStat[Inst[2]]
 
-            RegisterStat[Inst[1]] = station["Name"]
+            if(Inst[1] != "r0"):
+                RegisterStat[Inst[1]] = station["Name"]
+
             inst_RS.append(station)
             inst_issed.append(Inst)
             exec_time.append(0)
@@ -573,39 +574,60 @@ def WriteBack(Inst, station,PC):
     
     global call_ret_written
 
+    global write_value
+
     if(station["OP"] == "load"):
         if(Inst[1] != "r0"):
-            Reg[Inst[1]] = mem[station["A"]]
-        fix_after_write(station["Name"], Inst)
+            if(station["Name"] == RegisterStat[Inst[1]]):
+                Reg[Inst[1]] = mem[station["A"]]
+                RegisterStat[Inst[1]] = None
+            write_value = mem[station["A"]]
+        else:
+            write_value = 0
         station = removeInst(station)
 
     elif(station["OP"] == "store"):
         mem[station["A"]] = station["Vj"]
-        fix_after_write(station["Name"], Inst)
         station = removeInst(station)
 
     elif(station["OP"] == "add"):
         if(Inst[1] != "r0"):
-            Reg[Inst[1]] = station["Vj"]+station["Vk"]
-        fix_after_write(station["Name"], Inst)
+            if(station["Name"] == RegisterStat[Inst[1]]):
+                Reg[Inst[1]] = station["Vj"]+station["Vk"]
+                RegisterStat[Inst[1]] = None
+            write_value = station["Vj"]+station["Vk"]
+        else:
+            write_value = 0
         station = removeInst(station)
 
     elif(station["OP"] == "nand"):
         if(Inst[1] != "r0"):
-            Reg[Inst[1]] = ~(station["Vj"] & station["Vk"])
-        fix_after_write(station["Name"], Inst)
+            if(station["Name"] == RegisterStat[Inst[1]]):
+                Reg[Inst[1]] = ~(station["Vj"] & station["Vk"])
+                RegisterStat[Inst[1]] = None
+            write_value = (~(station["Vj"] & station["Vk"]))
+        else:
+            write_value = 0
         station = removeInst(station)
 
     elif( station["OP"] == "addi"):
         if(Inst[1] != "r0"):
-            Reg[Inst[1]] = station["Vj"]+station["Imm"]
-        fix_after_write(station["Name"], Inst)
+            if(station["Name"] == RegisterStat[Inst[1]]):
+                Reg[Inst[1]] = station["Vj"]+station["Imm"]
+                RegisterStat[Inst[1]] = None
+            write_value = station["Vj"]+station["Imm"]
+        else:
+            write_value = 0
         station = removeInst(station)
 
     elif(station["OP"] == "div"):
         if(Inst[1] != "r0"):
-            Reg[Inst[1]] = station["Vj"]/station["Vk"]
-        fix_after_write(station["Name"], Inst)
+            if(station["Name"] == RegisterStat[Inst[1]]):
+                Reg[Inst[1]] = station["Vj"]/station["Vk"]
+                RegisterStat[Inst[1]] = None
+            write_value = (station["Vj"]/station["Vk"])
+        else:
+            write_value = 0
         station = removeInst(station)
 
     elif(station["OP"] == "bne"):
@@ -614,20 +636,18 @@ def WriteBack(Inst, station,PC):
             Number_of_branches_taken += 1
             PC = station["A"]
         BranchWritten = True
-        fix_after_write(station["Name"], Inst)
         station = removeInst(station)
 
     elif(station["OP"] == "call"):
         Reg["r1"] = station["Imm"]+1
-        PC = station["A"]
+        PC = station["A"] - starting_adress
+        RegisterStat["r1"] = None
         call_ret_written = True
-        fix_after_write(station["Name"], Inst)
         station = removeInst(station)
 
     elif(station["OP"] == "ret"):
         PC = station["A"]
         call_ret_written = True
-        fix_after_write(station["Name"], Inst)
         station = removeInst(station)
     
     return PC
@@ -667,17 +687,26 @@ def simulate(clk, PC):
             i = write_queue[0]
             written_FU = inst_RS[i]["Name"]
             PC_target = WriteBack(inst_issed[i], inst_RS[i],PC)
-            TraceTable[i]["write"] = clk 
-            write_clk = clk           
+            TraceTable[i]["write"] = clk            
             write_queue.pop(0)
 
     if(clk != 0):
         for j in range(len(inst_RS)):
-            if(j <= BranchIndex):
-                exec_time[j] = canExecute(j, inst_RS[j], exec_time[j],PC)
-                if(can_write[j]):
-                    write_queue.append(j)
-                    can_write[j] = 0
+            if(written_FU is not None):
+                if(j <= BranchIndex and inst_RS[j]["Qj"] != written_FU and inst_RS[j]["Qk"] != written_FU):
+                    exec_time[j] = canExecute(j, inst_RS[j], exec_time[j],PC)
+                    if(can_write[j]):
+                        write_queue.append(j)
+                        can_write[j] = 0
+            else:
+                if(j <= BranchIndex):
+                    exec_time[j] = canExecute(j, inst_RS[j], exec_time[j],PC)
+                    if(can_write[j]):
+                        write_queue.append(j)
+                        can_write[j] = 0
+
+    if(written_FU is not None and written_FU != "store" and written_FU != "bne" and written_FU != "ret" and written_FU != "call"):
+        fix_after_write(written_FU, write_value)
 
     if(PC < len(instructions)):
         if (not stall_issuing):
@@ -690,7 +719,11 @@ def simulate(clk, PC):
             stall_issuing = False
             call_ret_issued = False
             for i in range(BranchIndex+1, len(inst_RS)):
-                fix_after_write(inst_RS[i]["Name"], inst_issed[i])
+                if(inst_issed[i][0] != "store" and inst_issed[i][0] != "bne" and inst_issed[i][0] != "ret"):
+                    if(inst_issed[i][0] == "call" and RegisterStat["r1"] == "Call/Ret"):
+                        RegisterStat["r1"] = None
+                    elif(RegisterStat[inst_issed[i][1]] == inst_RS[i]["Name"]):
+                        RegisterStat[inst_issed[i][1]] = None
                 inst_RS[i] = removeInst(inst_RS[i])
             inst_issed = inst_issed[:BranchIndex+1]
             inst_RS = inst_RS[:BranchIndex+1]
@@ -724,15 +757,14 @@ def print_TraceTable():
     print(tabulate.tabulate(rows, header,tablefmt="fancy_grid"))
 
 def top (go):
-
     global clk
-
     PC = 0
 
     while(True):
         if(go != '0'):
             clk += 1
             os.system("cls")
+            print("------------- Tomasulo Algorithm Simulator -------------\n")
             PC = simulate(clk, PC)
             print("Clock Cycle: ", clk)
             print("\nTrace Table: ")
@@ -749,14 +781,19 @@ def top (go):
             return                  
 
 IntializeMem()
-getUserInptMem()
+os.system("cls")
+print("------------- Tomasulo Algorithm Simulator -------------\n")
 instructions = getUserInptInst()
+
+os.system("cls")
+print("------------- Tomasulo Algorithm Simulator -------------\n")
+getUserInptMem()
 top(" ")
 
 print("\nNumber of Branches: ", Number_of_branches)
 print("Number of Branches Taken: ", Number_of_branches_taken)
 if(Number_of_branches_taken > 0):
-    print("Branch Misprediction: ", (Number_of_branches-Number_of_branches_taken)/Number_of_branches, "%")
+    print("Branch Misprediction: ", (Number_of_branches_taken)/Number_of_branches, "%")
 else:
     print("Branch Misprediction: 0%")
 
