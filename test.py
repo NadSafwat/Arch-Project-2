@@ -34,13 +34,16 @@ exec_time = []
 can_write = []
 write_queue = []
 instructions = []
-tracing_table = [{
+tracing_table = {
     "instruction": None,
     "issue": None,
     "start_exec": None,
     "end_exec": None,
     "write": None,
-}]
+}
+
+
+TraceTable = []
 
 call_ret_issued = False
 call_ret_written = False
@@ -157,16 +160,8 @@ instructions = [["load", "r5", "0", "r2"],  #0
                 ["store", "r1",2,"r2"],     #9
                 ["bne", "r1","r2",0],     #10
                 ["call", 6, None, None],   #11
-                ["add", "r0","r0","r0"]     #12
-                ]
-                
-                
-
-IntializeMem()
-getUserInptMem()
-# instructions = getUserInptInst()
-
-# for reg/Qi table at the bottom of every slide
+                ["add", "r0","r0","r0"]]     #12
+ 
 def fix_after_write(functional_unit_name, inst):
     if (inst[0] == "store" or inst[0]== "bne" or inst[0]=="ret" ):
         rd = None
@@ -263,6 +258,7 @@ def issue(Inst, PC, written_FU):
             inst_issed.append(Inst)
             exec_time.append(0)
             can_write.append(0)
+
             return True
         else:
             return False
@@ -439,7 +435,7 @@ def removeInst(station):
 
     return station
     
-def canExecute(j, station, count):
+def canExecute(j, station, count, PC):
     global Number_of_branches
 
     if(station["OP"] == "load"):
@@ -533,7 +529,7 @@ def canExecute(j, station, count):
                 return count
         except:
             return count
-    
+
     elif(station["OP"] == "ret"):
         try:
             if(station["Qj"] is None and count < 1):
@@ -616,12 +612,15 @@ def WriteBack(Inst, station,PC):
 
 def simulate(clk, PC):
     written_FU = None
+
     global inst_issed
     global inst_RS
+
     global stall_issuing
-    global stall_executing
     global call_ret_written
     global call_ret_issued
+
+    global stall_executing
     global branchIssued
     global BranchWritten
     global BranchIndex
@@ -645,14 +644,14 @@ def simulate(clk, PC):
             i = write_queue[0]
             written_FU = inst_RS[i]["Name"]
             PC_target = WriteBack(inst_issed[i], inst_RS[i],PC)
-            # print("Inst ", inst_issed[i][0], "Written")     
+            TraceTable[i]["write"] = clk 
             write_clk = clk           
             write_queue.pop(0)
 
     if(clk != 0):
         for j in range(len(inst_RS)):
             if(j <= BranchIndex):
-                exec_time[j] = canExecute(j, inst_RS[j], exec_time[j])
+                exec_time[j] = canExecute(j, inst_RS[j], exec_time[j],PC)
                 # print("Executed inst", inst_issed[j][0] , " ", exec_time[j], " cycles")
                 if(can_write[j]):
                     write_queue.append(j)
@@ -661,9 +660,10 @@ def simulate(clk, PC):
     if(PC < len(instructions)):
         if (not stall_issuing):
             issue_flag = issue(instructions[PC], PC, written_FU)
-            # if(issue_flag):
-            #     print("Issued Inst ", PC)
-            issue_clk = clk
+            if(issue_flag):
+                tracing_table["instruction"] = instructions[PC]
+                tracing_table["issue"] = clk
+                TraceTable.append(tracing_table.copy())
         if(BranchTaken or call_ret_written):
             stall_issuing = False
             call_ret_issued = False
@@ -677,8 +677,6 @@ def simulate(clk, PC):
             return (PC)
         else:
             return(PC+1)
-        
-        tracing_table.append({"instruction": instructions[PC], "issue": issue_clk, "start_exec": None, "end_exec": None, "write": write_clk})
     else:
         return PC
     
@@ -697,6 +695,11 @@ def print_Registers():
     rows = [Reg.values()]
     print(tabulate.tabulate(rows, header, tablefmt="fancy_grid"))
 
+def print_TraceTable():
+    header = TraceTable[0].keys()
+    rows = [x.values() for x in TraceTable]
+    print(tabulate.tabulate(rows, header,tablefmt="fancy_grid"))
+
 def top ():
 
     global clk
@@ -709,6 +712,8 @@ def top ():
             os.system("cls")
             PC = simulate(clk, PC)
             print("Clock Cycle: ", clk)
+            print("\nTrace Table: ")
+            print_TraceTable()
             print("\nResrvation Station: ")
             print_RS()
             print("\nRegister Stat Table: ")
@@ -721,11 +726,10 @@ def top ():
         else:
             return                  
 
-
+IntializeMem()
+# getUserInptMem()
+# instructions = getUserInptInst()
 top()
-
-for i in range(len(tracing_table)):
-    print(tracing_table[i])
 
 # print(Reg)
 # # print(mem)
